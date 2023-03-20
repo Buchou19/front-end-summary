@@ -1,0 +1,49 @@
+// 单页面应用 既想单页面又想SEO该怎么做? 真实DOM多在哪-虚拟DOM 前端路由 history hash API 浏览器解析
+// 垃圾回收 重排 重绘 AMD jscommon import 区别 TCP/IP
+// 变量提升 函数提升 优先级 https握手过程 节流、防抖函数手写 call、apply区别哪个性能好(实现call、apply、bind) CSRF、XSS攻击 手写new函数 
+// async、await ajax原生 proxy
+// 表达式中的函数没有变量提升!!!(关键是这句话, 后面的理解), 且参数是不能直接修改的, 比如 a = 1, 但是声明之后修改可以, 比如 var a = 1
+// 实现继承的方式
+// event target/currentTarget
+// 数据类型隐式转换 [] + {} + null + undefined + NaN + '1' + 1 
+// bind函数的传递方式 函数柯里化(手写)
+// Promise的具体阅读 (状态的传递)
+
+// 1.介绍JavaScript数据类型(Symbol,bigint)，如何检测一个变量类型？用"=="的时候类型如何转换
+// 2.聊聊类和函数的基本用法，分别是如何实现继承
+// 3.说说JavaScript数据是如何存储、如何回收；
+// 增加：js栈和堆的操作，闭包！！！
+// 4.说一下CSS盒子模型？
+// 5.解释position(!!sticky!!)和display的取值，各自的意思和用法？
+// 6.说一下浏览器缓存，浏览器缓存解决了什么问题？
+// 7.说一下地址栏输入网址到页面展示的过程，越详细越好？
+// css transform 原理 运行进程
+// 前端页面卡顿优化（多个http请求...）
+// 8.说一下http2.0协议？前端的改变: 可以不需减少http请求, 有坏处吗?
+
+// sort方法排序的原理
+// 基础排序算法 是否稳定 时间复杂度
+// 后缀表达式
+// animation 属性 时间函数特性
+// script async defer 属性 及优化
+// class 中方法和属性 明白!
+// sass less 常见的操作
+// git merge 和 rebase 的区别 cherry pick
+// html 解析中的生命周期函数 DOMContentLoaded 跟浏览器的解析过程结合来看
+// css 标签写在远程、内联、以及style的优缺点 请求不过来的时候是白屏吗
+
+
+// computed watch
+// this.$nextTick
+// for if 不能同时
+// 父子组件的渲染顺序 vue生命周期函数
+// 作用域!!! 作用域!!! this!!!
+// 什么是纯函数
+
+// webpack 打包分包原理
+// webpack 基本打包原理复习
+
+// css 中 BFC复习 块、行标签类型复习 > ~ & 选择器及权重复习
+// 正则邮箱匹配问题
+// 页面首次请求优化
+

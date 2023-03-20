@@ -22,7 +22,7 @@ if ({} == 0) {console.log(6);} // 6不输出
 
 ------
 
-ECMAScript中有5种基本数据类型：**Undefined、Null、Boolean、String、Number**，和1种复杂数据类型：**Object**，所有值都将是上述6种数据类型之一。
+ECMAScript中有5(es6: 6, es7: 7)种基本数据类型：**Undefined、Null、Boolean、String、Number、Symbol（ES6）、BigInt（ES7）**，和1种复杂数据类型：**Object**，所有值都将是上述6种数据类型之一。
 
 #### **typeof** 
 
