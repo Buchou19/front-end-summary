@@ -1,3 +1,5 @@
+# Javascript
+
 ## 1. 输出结果？原因？
 
 ```javascript
@@ -2504,3 +2506,855 @@ $' 表示匹配到底内容的后面
 
 
 
+# Node
+
+## 1. Node.js 是什么?
+
+- Node.js® is a JavaScript runtime built on [Chrome's V8 JavaScript engine](https://v8.dev/).
+  - Node.js 不是一门语言
+  - Node.js 不是库、不是框架
+  - Node.js 是 JavaScript 运行时环境
+  - 简单点来讲就是 Node.js 可以解析和执行 JavaScript 代码
+  - 以前只有浏览器可以解析和执行 JavaScript 代码
+  - 也就是说现在的 JavaScript 可以完全脱离浏览器来运行，一切都归功于：Node.js
+- 浏览器中的 JavaScript
+  - ECMAScript
+    - 基本的语法
+    - if
+    - var
+    - function
+    - Object
+    - Array
+    - ......
+  - BOM
+  - DOM
+- Node.js 中的 JavaScript
+  - **没有BOM、DOM**
+  - ECMAScript
+  - 在 Node 这个 JavaScript 执行环境中为 JavaScript 提供了一些服务器级别的操作API
+    - 例如文件读写
+    - 网络服务的构建
+    - 网络通信
+    - http 服务器等处理...
+
+# Vue
+
+## 1. MVVM 是是什么?
+
+MVVM 是 Model-View-ViewModel 的缩写，MVVM 是一种设计思想。
+
+Model 层代表数据模型，也可以在 Model 中定义数据修改和操作的业务逻辑；View 代表 UI 组件，它负责将数据模型转化成 UI 展现出来，ViewModel 是一个同步 View 和 Model 的对象。
+
+在 MVVM 架构下，View 和 Model 之间并没有直接的联系，而是通过 ViewModel 进行交互，Model 和 ViewModel 之间的交互是双向的， 因此 View 数据的变化会同步到 Model 中，而 Model 数据的变化也会立即反应到 View 上。
+
+ViewModel 通过双向数据绑定把 View 层和 Model 层连接了起来，而 View 和 Model 之间的同步工作完全是自动的，无需人为干涉，因此开发者只需关注业务逻辑，不需要手动操作 DOM, 不需要关注数据状态的同步问题，复杂的数据状态维护完全由 MVVM 来统一管理。
+
+## 2. vue 的响应式原理
+
+#### 对象的响应式
+
+先来了解下这个函数 Object.defineProperty : 方法会直接在一个对象上定义一个新属性，或者修改一个对象的现有属性，并返回此对象。
+
+```js
+// Object.defineProperty(obj, prop, descriptor)
+const object1 = {};
+
+Object.defineProperty(object1, 'property1', {
+  value: 42,
+  writable: false
+});
+
+object1.property1 = 77;
+// throws an error in strict mode
+
+console.log(object1.property1);
+// expected output: 42
+```
+
+重点了解下里面的 getter、setter 函数：
+
+```js
+const obj = {};
+
+Object.defineProperty(obj, 'property1', {
+  get() {
+      console.log('你访问了一次obj的property1的属性！');
+  },
+  set() {
+      console.log('你操作了一次obj的property1的属性！');
+  }
+});
+```
+
+设置了 getter 函数后，每访问一次 obj.property 就会执行一次 getter 函数内容，obj.property 的返回值就是 getter 函数 return 的结果，如果没有return就是 undefined；
+
+设置了 setter 函数后，每修改一次 obj.property 的值就会执行一次 setter 函数内容，**注意！**如果在 setter 中又修改 obj.property 的值，就会无休止的执行 setter 函数，而 obj.property 的返回值只会唯一跟 getter 的返回值有关；
+
+所有一个需要一个**中间变量**，且可以封装一个外部函数：
+
+```js
+const obj = {};
+
+function defineReactive(data, key, val) {
+    // 这时 val 就是初始值
+    Object.defineProperty(data, key, {
+      get() {
+          console.log('你访问了一次' + data + '的' + key + '的属性！');
+          return val;
+      },
+      set( newValue ) {
+          console.log('你操作了一次' + data + '的' + key + '的属性！');
+          if (val === newValue) {
+              return;
+          }
+          val = newValue;
+      }
+    });
+}
+
+defineReactive(obj, 'property1', 0);
+```
+
+**完美！**以上我们实现了对一个对象属性的 **访问监听** 和 **变化监听**，下面我们完整的实现对一个对象所有属性的响应式监听以及下面所有属性对象的响应式监听，并且实现了属性修改后的响应式监听，如下：
+
+```js
+class Observer {
+  constructor(obj) {
+    var thisObserver = this;
+    // 给 obj 增加 __ob__ 属性, 属性值就是这个Observer实例本身
+    Object.defineProperty(obj, '__ob__', {
+      value: thisObserver,
+      enumerable: false, // 是否可枚举
+      writable: true, // 是否可写
+      configurable: true // 是否可以被删除
+    });
+    // 给这个对象的每个属性增加响应式
+    this.walk(obj);
+  }
+  walk(obj) {
+    for (let k in obj) {
+      defineReactive(obj, k);
+    }
+  }
+};
+
+/**
+ * 这里开始
+ */
+var obj = {
+  a: {
+    aa: {
+      aaa: 999
+    }
+  },
+  b: 777
+};
+
+// 我想做的是把 obj 对象的所有属性及下面的属性对象的所有属性都建立成响应式的
+observe(obj);
+
+// obeserve 函数就是用来做这件事
+function observe(obj) {
+  // obj不是对象, 我就不需要为它建立响应式, 因为它就没有属性
+  // 考虑null
+  if (typeof obj !== 'object') return;
+  // 接下里判断这个对象是不是有了观察者对象 Observer 属性
+  // 如果有了这个属性就直接返回, 没有的话就为它新建一个然后返回
+  var ob;
+  if (obj.__ob__ !== undefined) {
+    ob = obj.__ob__;
+  } else {
+    ob = new Observer(obj);
+  }
+  return ob;
+}
+
+function defineReactive(obj, key, val) {
+  // 如果没有传 val , 就默认是原始对象初始值
+  if (arguments.length === 2) {
+    val = obj[key];
+  }
+  // 在给这个对象属性增加响应式之前
+  // 我先给这个对象属性值增加响应式, 如下:
+  observe(obj[key]);
+
+  Object.defineProperty(obj, key, {
+      get() {
+          console.log('你访问了一次' + obj + '的' + key + '的属性！');
+          return val;
+      },
+      set(newValue) {
+          console.log('你操作了一次' + obj + '的' + key + '的属性！');
+          if (val === newValue) {
+              return;
+          }
+          val = newValue;
+          // 一定记得当属性值修改后也为新的属性值建立响应式监听
+          observe(val);
+      }
+  });
+};
+```
+
+**以上！**
+
+#### 数组的响应式
+
+以上的代码是没有办法处理数组的响应式，在 vue 的底层代码中，它**改写了数组的 7 个原生方法**，分别是：
+
+1. **push**
+2. **pop**
+3. **unshift**
+4. **shift**
+5. **splice**
+6. **sort**
+7. **reverse**
+
+改写完成之后，数组的这 7 个方法就是具有响应式的了，下面我们来手动实现它：
+
+在此之前，我们先来学几个 Object 的方法吧：
+
+```js
+Object.setPrototypeOf(obj, prototype); // 将 obj 的原型链指向 prototype
+// 等价于
+obj.__proto__ = prototype;
+
+Object.create(prototype); // 创建一个空对象，并将其原型链指向 prototype
+// 等价于
+Object.setPrototypeOf({}, prototype);
+// 等价于
+{}.__proto__ = prototype;
+
+```
+
+实现代码如下：
+
+```js
+class Observer {
+  constructor(obj) {
+    var thisObserver = this;
+    // 给 obj 增加 __ob__ 属性, 属性值就是这个Observer实例本身
+    Object.defineProperty(obj, '__ob__', {
+      value: thisObserver,
+      enumerable: false, // 是否可枚举
+      writable: true, // 是否可写
+      configurable: true // 是否可以被删除
+    });
+	// 增加数组的判断
+    if (Array.isArray(obj)) {
+      // 如果是数组的话, 要做些特殊的操作
+      // 先让这个数组对象的原型链指向重写了7中方法的 arrayMethods
+      Object.setPrototypeOf(obj, arrayMethods);
+      // 然后让这个数组变成响应式
+      // 主意下面 observeArray 的操作!
+      this.observeArray(obj);
+    } else {
+      // 给这个对象的每个属性增加响应式
+      this.walk(obj);
+    }
+  }
+  walk(obj) {
+    for (let k in obj) {
+      defineReactive(obj, k);
+    }
+  }
+  observeArray(arr) {
+    for (let i = 0, l = arr.length; i < l; i++) {
+      // 这个操作并没有为数组的每个属性设置响应式监听
+      // 而是遍历每个数组值, 为可能出现的数组或对象设置监听
+      observe(arr[i]);
+    }
+  }
+};
+
+// obeserve 函数就是用来做这件事
+function observe(obj) {
+  // obj不是对象, 我就不需要为它建立响应式, 因为它就没有属性
+  // 考虑null
+  if (typeof obj !== 'object') return;
+  // 接下里判断这个对象是不是有了观察者对象 Observer 属性
+  // 如果有了这个属性就直接返回, 没有的话就为它新建一个然后返回
+  var ob;
+  if (obj.__ob__ !== undefined) {
+    ob = obj.__ob__;
+  } else {
+    ob = new Observer(obj);
+  }
+  return ob;
+}
+
+function defineReactive(obj, key, val) {
+  // 如果没有传 val , 就默认是原始对象初始值
+  if (arguments.length === 2) {
+    val = obj[key];
+  }
+  // 在给这个对象属性增加响应式之前
+  // 我先给这个对象数值增加响应式, 如下:
+  observe(obj[key]);
+
+  Object.defineProperty(obj, key, {
+    get() {
+      console.log('你访问了一次' + obj + '的' + key + '的属性！');
+      return val;
+    },
+    set(newValue) {
+      console.log('你操作了一次' + obj + '的' + key + '的属性为' + newValue + '!');
+      if (val === newValue) {
+        return;
+      }
+      val = newValue;
+      observe(val);
+    }
+  });
+};
+
+// 我们来手动构建一个原型对象 arrayMethods
+// 它的__proto__指向了Array.prototype, 并且定义了7个同名的数组方法
+const arrayMethods = Object.create(Array.prototype);
+['push', 'pop', 'unshift', 'shift', 'splice', 'sort', 'reverse'].forEach(methodName => {
+  const original = Array.prototype[methodName];
+  Object.defineProperty(arrayMethods, methodName, {
+    value: function () {
+      // 注意在这个函数里我已经监听到了调用这7个方法的响应
+      // 这7个数组的响应操作是在这里进行了, 如:
+      console.log('你调用了数组的' + methodName + '方法!');
+      // 下面要处理一下这三个特殊的方法: push、unshift、splice
+      // 因为这三个方法都添加了新元素到数组中, 需要为新元素添加监听
+      let inserted = [];
+      switch (methodName) {
+        case 'push':
+        case 'unshift':
+          inserted = [...arguments];
+          break;
+        case 'splice':
+          inserted = [...arguments].slice(2);
+          break;
+      }
+      for (let i = 0; i < inserted.length; i++) {
+        observe(inserted[i]);
+      }
+      // 实现函数原本的功能
+      return original.apply(this, arguments);
+    },
+    enumerable: false,
+    configurable: true
+  });
+});
+
+
+/**
+ * 这里开始
+ */
+var obj = {
+  a: {
+    aa: {
+      aaa: 999
+    }
+  },
+  b: 777,
+  c: [1, [11, 22], 3]
+};
+// 我想做的是把 obj 对象的所有属性及下面的属性对象的所有属性都建立成响应式的
+observe(obj);
+```
+
+**记住！**
+
+- 所有对对象的属性的操作是有监听的，但是为对象增加属性是没有监听的，因为没有绑定响应式；
+- 所有对数组的直接操作都是没有监听的，例如 arr[i] ，不管 arr[i] 指向的是指向的值、数组、对象，能监听到的只有数组的7个方法
+- 数组中的对象、数组同理！对象中的数组、对象同理！
+
+#### 收集依赖 Watcher Dep
+
+
+
+# Webpack
+
+## 1. 什么是 webpack ?
+
+前端进入了工程化（模块化）开发阶段，但 js 本身并不支持模块化开发，那 webpack 就是一个支持本地模块化开发的**打包**（构建）工具。总而言之：**打包工具**。
+
+## 2. webpack 打包原理
+
+假如现在有 index.js 模块如下：
+
+```js
+var add = require('add.js').default;
+console.log(add(2, 4));
+```
+
+index.js 依赖的 add.js 模块如下：
+
+```js
+exports.default = function add (a, b) {
+    return a + b;
+}
+```
+
+那现在，如果你实现一个 webpack 把所有依赖打包到一个 bundle 文件中，你会怎么做？
+
+我首先想到直接合并到一起：
+
+```js
+// add.js
+exports.default = function add (a, b) {
+    return a + b;
+}
+// index.js
+var add = require('add.js').default;
+console.log(add(2, 4));
+```
+
+这样显然不行，因为浏览器不认识 exports、require 变量，那我就自动的给他添加上这两个变量，然后让源代码在 **eval** 函数里面执行，试试先解决 exports：
+
+```js
+// exports 其实就是一个对象
+var exports = {};
+// 那eval执行add.js源代码就不会报错了
+eval(`exports.default = function add (a, b) { return a + b;}`);
+// 相当于给exports对象增加了一个属性default，它的值是add函数
+```
+
+以上通过自动增加了一个 exports 对象就可以直接 eval 执行不需要改变任何源代码，Nice！
+
+但是问题又出现了！如果 add.js 本身又声明了很多变量怎么办？这些变量会污染全局吗？显然会！
+
+而 node 中模块化开发的概念只是暴露出 module.exports 变量，其他的所有变量具有模块化作用域，而要通过原生的 js 解决这一问题马上想到自调用函数中的函数作用域，如下：
+
+```js
+var exports = {};
+(function (exports, code) {
+    eval(code);
+})(exports, `var inner = 'inner';exports.default = function add (a, b) {return a + b;}`);
+// 第一个参数 exports，第二个参数源代码code字符串
+```
+
+外部 exports 被操作赋值，内部变量不会影响外部，完美解决！
+
+下面来看 require ，require 肯定是一个函数，传入一个参数文件名字符串，返回的结果就是exports变量，我们来手动构建出这个函数就可以了，同时考虑到一点，以上的 export 变量应该是在 require 函数内部定义的，因为我只有 require 一个文件的时候，才需要去执行这个文件的源代码，如下：
+
+```js
+// index.js
+// var add = require('add.js').default;
+// console.log(add(2, 4));
+
+function require(filename) {
+    var exports = {};
+    (function (exports, code) {
+        eval(code);
+    })(exports, `var inner = 'inner';exports.default = function add (a, b) {return a + b;}`);
+    return exports;
+}
+```
+
+以上这个函数实现了吗？实现了，但是还有问题，内部 eval 函数执行的应该是 filename 文件对应的源代码，而上面是写死的，所以我们需要再构建一个自调用函数包含参数 file ，这是个对象，包含了所有 filename 到 源代码 code 字符串的映射，如下：
+
+```js
+(function (file) {
+    function require(filename) {
+        var exports = {};
+        (function (exports, code) {
+            eval(code);
+        })(exports, file[filename]);
+        return exports;
+    }
+    // 入口
+    require('index.js');
+})({
+    'index.js': `var add = require('add.js').default;console.log(add(2, 4));`,
+    'add.js': `var inner = 'inner';exports.default = function add (a, b) {return a + b;}`
+});
+```
+
+**完美！**
+
+其实这个时候 webpack 的基本原理就已经实现了，这就是一份打包好的 bundle.js 文件，引入后在浏览器中可以直接运行显示结果 6 ；
+
+我们在来从头回顾下它执行的过程：
+
+```js
+require('index.js');
+// 1. 这一句从用户自定义的入口文件 index.js 开始执行，调用并执行了 require 函数
+// 2. 中间执行到 eval(code) 的时候，实际执行 eval(file[filename]), 也就是 eval(`var add = require('add.js').default;console.log(add(2, 4));`)
+// 3. 执行这一句中间有一句 require('add.js')，从而又递归执行 require
+// 4. 然后 eval(`var inner = 'inner';exports.default = function add (a, b) {return a + b;}`)
+// 5. 如果 add.js 里面又引入依赖，然后会递归执行下去直到最后...
+```
+
+以上！实现了 webpack 打包文件的基本原理，朴实无华！
+
+下面剩下这个问题，如何构造这个 **file** 文件代码映射对象？源代码 code 中有 es6 语法怎么办？比如 **import**？
+
+```js
+{
+    'index.js': `var add = require('add.js').default;console.log(add(2, 4));`,
+    'add.js': `var inner = 'inner';exports.default = function add (a, b) {return a + b;}`
+}
+```
+
+查看 webapck 打包后的源代码，你会发现它都会构造这样一个 file 对象，包含了从入口开始需要用到的所有依赖文件名到源代码的映射，而且这份源代码是经过转化的，比如 ex6 import 转化，因为基于以上我们手写的 webpack 原理，我们只帮助构造了 exports 和 reuqire，而eval中不能识别 import。下面我们实现这个过程：
+
+```js
+const fs = require('fs');
+const path = require('path');
+// ast
+const parser = require('@babel/parser');
+// 节点遍历
+const traverse = require('@babel/traverse').default;
+// es6 -> es5
+const babel = require('@babel/core');
+
+/**
+ * 分析依赖
+ * @param {*} file 
+ */
+function getModuleInfo(file) {
+  const body = fs.readFileSync(file, 'utf-8');
+  
+  // 转换ast语法树
+  const ast = parser.parse(body, {
+    sourceType: 'module'
+  });
+
+  // 依赖收集 import xxx
+  const deps = {};
+  traverse(ast, { 
+    // 其实就是一个遍历所有节点的遍历器
+    // 找到所有的 ImportDeclaration 语句然后进行操作
+    ImportDeclaration({ node }) {
+      const dirname = path.dirname(file);
+      const abspath = './' + path.join(dirname, node.source.value);
+      deps[node.source.value] = abspath;
+    }
+  });
+  
+  // es6 -> es5
+  const { code } = babel.transformFromAst(ast, null, {
+    // 预设
+    presets: ["@babel/preset-env"]
+  });
+
+  const info = {
+    file,
+    deps,
+    code
+  };
+  return info;
+}
+
+/**
+ * 模块解析
+ * @param {*} file 
+ */
+function parseModules(file) {
+  const entry = getModuleInfo(file);
+  const temp = [entry];
+  const depsGraph = {};
+
+  getDeps(temp, entry);
+  temp.forEach(info => {
+    depsGraph[info.file] = {
+      deps: info.deps,
+      code: info.code
+    }
+  });
+  return depsGraph;
+}
+
+/**
+ * 递归获取依赖
+ * @param {*} temp 
+ * @param {*} param1 
+ */
+function getDeps(temp, { deps }) {
+  Object.keys(deps).forEach(key => {
+    const child = getModuleInfo(deps[key]);
+    temp.push(child);
+    getDeps(temp, child);
+  });
+}
+
+/**
+ * 最终的打包构建代码
+ * @param {*} file 
+ */
+function bundle(file) {
+  const depsGraph = JSON.stringify(parseModules(file));
+  return `
+    (function (file) {
+      function require(filename) {
+          var exports = {};
+          (function (exports, code) {
+              eval(code);
+          })(exports, file[filename].code);
+          return exports;
+      }
+      // 入口
+      require('${file}');
+    })(${depsGraph});
+  `;
+}
+
+// 写入文件
+const content = bundle('./index.js');
+!fs.existsSync('./dist') && fs.mkdirSync('./dist');
+fs.writeFileSync('./dist/bundle.js', content);
+```
+
+除了生成名为 depsGraph 的 file 对象，中间还进行了 ES6 到 ES5 的语法转化，主要过程如下：
+
+1. 从入口文件进入分析，这个过程包括：
+   1. 读取文件得到字符串
+   2. 将字符串转化为 ast 抽象语法树
+   3. 遍历这个 ast 抽象语法树中每个节点
+   4. 找到依赖（ImportDeclaration）语句声明，把当前文件依赖的所有文件添加到 deps 对象中
+   5. 并且转化文件源代码字符串为 es5 语法存起来
+   6. 在生成完每个文件的 deps 的过程中，在递归遍历 deps 中所有文件的相关依赖
+   7. 直到生成最后的 depsGraph
+2. 利用以上分析的 webpack 原理，直接返回打包代码片段，并把参数 depsGraph 字符串传入
+3. 生成可最终打包的字符串并写入输出文件中
+
+**以上！**
+
+
+
+
+
+# OS
+
+## 1. 进程 线程 同步 异步 并行 串行 并发
+
+**进程**：进程是操作系统分配给应用程序独享的一块资源，一般一个应用程序至少拥有一个进程，进程的资源（内存、CPU、I/O等）是独立的，进程之间不共享资源；
+
+**线程**：线程可以看作是进程执行的最小单位，是“轻量级”的进程，线程没有独立的资源，需要进程提供，多个线程可以共享进程资源；
+
+**同步**：代码按照书写顺序，依次执行，如A-B-C-D；
+
+**异步**：代码不按照书写顺序依次执行，如A-C-D-B；
+
+**并行**：在同一时间**点**，多个处理器处理任务（可以是同一个任务，也可以是不同的任务）；
+
+**串行**：在任一时间**点**，都只有一个处理器在处理任务；
+
+理解——并行不一定异步（多个CPU同时依次处理A-B-C-D），异步也不一定需要并行（一个CPU处理A-C-D-B）
+
+**并发**：**并行**显然只能在多核CPU上出现，而在单核CPU时代，**并发是为了模拟并行**的，就是把CPU的运行时间切分成很小的时间片，然后每一个时间片，依次处理A-B-C-D，由于很快，就感觉A、B、C、D在同时被执行，在每个时间**点**上，CPU还是在处理一个任务，本质还是串行，但是一个时间**段**内，可以看作是A、B、C、D被同时执行。
+
+## 2. 进程间通信方式
+
+每个进程的用户地址空间都是独立的，一般而言是不能相互访问的（为什么？因为多进程是要频繁切换执行的，若多个进程频繁切换操作同一个地址空间内容，总会出现错误），但是内核空间是每个进程都共享的，所以进程之间通信必须通过内核。
+
+————————————————————————————————————————————————————————————
+
+|								进程1（用户空间）								进程2（用户空间）								进程3（用户空间）			  				|
+
+————————————————————————————————————————————————————————————
+
+|																										内核空间																										  |
+
+————————————————————————————————————————————————————————————
+
+### ——管道——
+
+**所谓的管道，就是内核里面的一串缓存**
+
+从管道的一段写入的数据，实际上是缓存在内核中的，另一端读取，也就是从内核中读取这段数据。另外，管道传输的数据是*无格式的流且大小受限*（FIFO先进先出）。
+
+管道通信时**单向的**，若想双向通信，需要创建**两个管道**。
+
+但是有一点，假如进程A把数据存入管道，只能等待数据被进程B读取后才能返回！所以如下：
+
+- 优点：**简单**，能保证数据真的被其他数据拿走
+- 缺点：**效率低**，且只能单向通信，不适合频繁交换数据
+
+### ——消息队列——
+
+管道的通信方式是效率低的，因此管道不适合进程间频繁地交换数据。
+
+对于这个问题，**消息队列**的通信模式就可以解决。比如，A 进程要给 B 进程发送消息，A 进程把数据**放在对应的消息队列后就可以正常返回**了，B 进程**需要的时候再去读取数据**就可以了。同理，B 进程要给 A 进程发送消息也是如此。
+
+**消息队列是保存在内核中的消息链表**，在发送数据时，会分成一个一个独立的数据单元，也就是消息体（数据块），消息体是用户自定义的数据类型，消息的发送方和接收方要约定好消息体的数据类型，所以每个消息体都是固定大小的存储块，不像管道是无格式的字节流数据。如果进程从消息队列中读取了消息体，内核就会把这个消息体删除。
+
+消息队列的读取和写入的过程，都会有发生**用户态与内核态之间的消息拷贝过程**。
+
+- 优点：效率比管道高，可以**频繁沟通**
+- 缺点：通信不及时，不适合传送**大数据**（因为拷贝占用时间长）
+
+### ——共享内存——
+
+现代操作系统，对于内存管理，采用的是虚拟内存技术，也就是每个进程都有自己**独立的虚拟内存空间**，**不同进程的虚拟内存映射到不同的物理内存中**。所以，*即使进程 A 和 进程 B 的虚拟地址是一样的，其实访问的是不同的物理内存地址*，对于数据的增删查改互不影响。
+
+**共享内存的机制，就是拿出一块虚拟地址空间来，映射到相同的物理内存中**。这样这个进程写入的东西，另外一个进程马上就能看到了，都不需要拷贝来拷贝去，传来传去，大大提高了进程间通信的速度。
+
+用了共享内存通信方式，带来新的问题，那就是如果多个进程同时修改同一个共享内存，很有可能就冲突了。例如两个进程都同时写一个地址，那先写的那个进程会发现内容被别人覆盖了。
+
+- 优点：无需拷贝，可频繁交换大数据，速度快
+- 缺点：线程安全问题、多进程竞争问题（给谁用？怎么用？）
+
+### ——信号量——
+
+为了**防止多进程竞争共享资源**，而造成的数据错乱，所以需要保护机制，使得共享的资源，在任意时刻只能被一个进程访问。正好，**信号量**就实现了这一保护机制。
+
+**信号量其实是一个整型的计数器，主要用于实现进程间的互斥与同步，而不是用于缓存进程间通信的数据**。
+
+[理解信号量](https://www.bilibili.com/video/BV1d4411v7u7?p=16) 这个视频辅助理解信号量 (-___-)
+
+理解：信号量为负值表明有多少进程在等待，唤醒一个+1，为正值表明还剩余可使用的资源，当然还有加锁的信号量，进去之后锁值改变。
+
+### ——Socket——
+
+（了解）
+
+前面提到的管道、消息队列、共享内存、信号量和信号都是在同一台主机上进行进程间通信，那要想**跨网络与不同主机上的进程之间通信，就需要 Socket 通信了。**
+
+实际上，Socket 通信不仅可以跨网络与不同主机的进程间通信，还可以在同主机上进程间通信。
+
+我们来看看创建 socket 的系统调用：
+
+```text
+int socket(int domain, int type, int protocal)
+```
+
+监听的 socket 和真正用来传送数据的 socket，是「**两个**」 socket，一个叫作**监听 socket**，一个叫作**已完成连接 socket**。
+
+成功连接建立之后，双方开始通过 read 和 write 函数来读写数据，就像往一个文件流里面写东西一样。
+
+### ——总结——
+
+由于每个进程的用户空间都是独立的，不能相互访问，这时就需要借助内核空间来实现进程间通信，原因很简单，每个进程都是共享一个内核空间。
+
+Linux 内核提供了不少进程间通信的方式，其中最简单的方式就是管道，管道分为「匿名管道」和「命名管道」。
+
+**匿名管道**顾名思义，它没有名字标识，匿名管道是特殊文件只存在于内存，没有存在于文件系统中，shell 命令中的「`|`」竖线就是匿名管道，通信的数据是**无格式的流并且大小受限**，通信的方式是**单向**的，数据只能在一个方向上流动，如果要双向通信，需要创建两个管道，再来**匿名管道是只能用于存在父子关系的进程间通信**，匿名管道的生命周期随着进程创建而建立，随着进程终止而消失。
+
+**命名管道**突破了匿名管道只能在亲缘关系进程间的通信限制，因为使用命名管道的前提，需要在文件系统创建一个类型为 p 的设备文件，那么毫无关系的进程就可以通过这个设备文件进行通信。另外，不管是匿名管道还是命名管道，进程写入的数据都是**缓存在内核**中，另一个进程读取数据时候自然也是从内核中获取，同时通信数据都遵循**先进先出**原则，不支持 lseek 之类的文件定位操作。
+
+**消息队列**克服了管道通信的数据是无格式的字节流的问题，消息队列实际上是保存在内核的「消息链表」，消息队列的消息体是可以用户自定义的数据类型，发送数据时，会被分成一个一个独立的消息体，当然接收数据时，也要与发送方发送的消息体的数据类型保持一致，这样才能保证读取的数据是正确的。消息队列通信的速度不是最及时的，毕竟**每次数据的写入和读取都需要经过用户态与内核态之间的拷贝过程。**
+
+**共享内存**可以解决消息队列通信中用户态与内核态之间数据拷贝过程带来的开销，**它直接分配一个共享空间，每个进程都可以直接访问**，就像访问进程自己的空间一样快捷方便，不需要陷入内核态或者系统调用，大大提高了通信的速度，享有**最快**的进程间通信方式之名。但是便捷高效的共享内存通信，**带来新的问题，多进程竞争同个共享资源会造成数据的错乱。**
+
+那么，就需要**信号量**来保护共享资源，以确保任何时刻只能有一个进程访问共享资源，这种方式就是互斥访问。**信号量不仅可以实现访问的互斥性，还可以实现进程间的同步**，信号量其实是一个计数器，表示的是资源个数，其值可以通过两个原子操作来控制，分别是 **P 操作和 V 操作**。
+
+与信号量名字很相似的叫**信号**，它俩名字虽然相似，但功能一点儿都不一样。信号是进程间通信机制中**唯一的异步通信机制**，信号可以在应用进程和内核之间直接交互，内核也可以利用信号来通知用户空间的进程发生了哪些系统事件，信号事件的来源主要有硬件来源（如键盘 Cltr+C ）和软件来源（如 kill 命令），一旦有信号发生，**进程有三种方式响应信号 1. 执行默认操作、2. 捕捉信号、3. 忽略信号**。有两个信号是应用进程无法捕捉和忽略的，即 `SIGKILL` 和 `SEGSTOP`，这是为了方便我们能在任何时候结束或停止某个进程。
+
+前面说到的通信机制，都是工作于同一台主机，如果**要与不同主机的进程间通信，那么就需要 Socket 通信了**。Socket 实际上不仅用于不同的主机进程间通信，还可以用于本地主机进程间通信，可根据创建 Socket 的类型不同，分为三种常见的通信方式，一个是基于 TCP 协议的通信方式，一个是基于 UDP 协议的通信方式，一个是本地进程间通信方式。
+
+以上，就是进程间通信的主要机制了。
+
+
+
+# Compilers
+
+## 1. 什么是编译?
+
+就是将高级语言（源语言）翻译成汇编语言或机器语言（目标语言）的过程。
+
+## 2. 编译器的结构
+
+词法分析——语法分析——语义分析——中间代码生成——机器无关代码优化——目标代码生成——机器相关代码优化
+
+## 3. 文法
+
+文法**G** = { 终结符集合，非终结符集合，推导规则（或产生式集合），开始符号 }
+
+经过词法分析后，按照**文法**定义的**规则**，可以由非终结符**推导**为最终的终结符，或把所有非终结符**规约**为最终的非终结符，都视为符合这个**文法规则**。文法可以生成标识符、表达式等（即生成**语言**）......
+
+如果根据结果可以生成两种或两种以上的分析树，那么就认为它是有二义性的。
+
+## 4. 词法分析
+
+从左向右逐行扫描源代码中的字符，识别各个单词并确定单词种类：
+
+**token：< 种别码，属性值 >** 
+
+种别有关键字（一词一码）、标识符（多词一码）、常量、运算符等......
+
+**正则表达式**可以方便的表示语言，对于任何**正则文法G**，都存在定义同一语言的正则表达式。
+
+正则文法能描述程序设计语言的多数单词。
+
+**NFA**、**DFA**了解...
+
+关键字、标识符、常量、运算符、注释等都有对应的正则文法来识别，识别完成后生成token。
+
+词法分析阶段也可以检测到错误，根据规则引导进入错误处理程序。
+
+## 5. 语法分析
+
+语法分析器从词法分析器输出的token序列中识别出各类短语，并**构造出语法分析树**。
+
+我认为跟词法分基本析没有什么区别，无非是自顶向下（推导）或自底向上（规约）来判断这个句子是否属于这个语言，如程序、语句、表达式。
+
+至于**词法分析和语法分析**的**区别**如下：
+
+词法分析的时候用正则表达式（也就是正则文法，3型文法，范围最小）就可以描述。但是在语法分析的时候，就得用上下文无关文法（2型文法）来描述。语法分析中，很多东西是不能用正则表达式来描述的，因此得用上下文无关语法。
+
+## 6. 语法制导翻译
+
+语义翻译 === 语义分析 + 中间代码生成
+
+语法制导翻译 === 语法分析 + 语义分析 + 中间代码生成
+
+**语法制导翻译 **使用上下文无关文法来引导对语言的翻译，是一种面向文法的翻译技术。
+
+**语法制导定义SDD**是对上下文无关文法的推广：
+
+1. 将每个文法符号和一个语义属性集合相关联
+2. 将每个产生式和一组语义规则相关联，用来计算该产生式中各文法符号的属性值
+
+自己理解：将一些语义操作及翻译的动作嵌入在文法规则中。
+
+**语法制导翻译方案SDT**是在产生式右部中嵌入了程序片段（称为语义动作）的上下文无关文法，SDT可以看作是SDD的具体实施方案。
+
+
+
+# 面试临时
+
+// 单页面应用 既想单页面又想SEO该怎么做? 真实DOM多在哪-虚拟DOM 前端路由 history hash API 浏览器解析
+// 垃圾回收 重排 重绘 AMD jscommon import 区别 TCP/IP
+// 变量提升 函数提升 优先级 https握手过程 节流、防抖函数手写 call、apply区别哪个性能好(实现call、apply、bind) CSRF、XSS攻击 手写new函数 
+// async、await ajax原生 proxy
+// 表达式中的函数没有变量提升!!!(关键是这句话, 后面的理解), 且参数是不能直接修改的, 比如 a = 1, 但是声明之后修改可以, 比如 var a = 1
+// 实现继承的方式
+// event target/currentTarget
+// 数据类型隐式转换 [] + {} + null + undefined + NaN + '1' + 1 
+// bind函数的传递方式 函数柯里化(手写)
+// Promise的具体阅读 (状态的传递)
+
+// 1.介绍JavaScript数据类型(Symbol,bigint)，如何检测一个变量类型？用"=="的时候类型如何转换
+// 2.聊聊类和函数的基本用法，分别是如何实现继承
+// 3.说说JavaScript数据是如何存储、如何回收；
+// 增加：js栈和堆的操作，闭包！！！
+// 4.说一下CSS盒子模型？
+// 5.解释position(!!sticky!!)和display的取值，各自的意思和用法？
+// 6.说一下浏览器缓存，浏览器缓存解决了什么问题？
+// 7.说一下地址栏输入网址到页面展示的过程，越详细越好？
+// css transform 原理 运行进程
+// 前端页面卡顿优化（多个http请求...）
+// 8.说一下http2.0协议？前端的改变: 可以不需减少http请求, 有坏处吗?
+
+// sort方法排序的原理
+// 基础排序算法 是否稳定 时间复杂度
+// 后缀表达式
+// animation 属性 时间函数特性
+// script async defer 属性 及优化
+// class 中方法和属性 明白!
+// sass less 常见的操作
+// git merge 和 rebase 的区别 cherry pick
+// html 解析中的生命周期函数 DOMContentLoaded 跟浏览器的解析过程结合来看
+// css 标签写在远程、内联、以及style的优缺点 请求不过来的时候是白屏吗
+
+
+// computed watch
+// this.$nextTick
+// for if 不能同时
+// 父子组件的渲染顺序 vue生命周期函数
+// 作用域!!! 作用域!!! this!!!
+// 什么是纯函数
+
+// webpack 打包分包原理
+// webpack 基本打包原理复习
+
+// css 中 BFC复习 块、行标签类型复习 > ~ & 选择器及权重复习
+// 正则邮箱匹配问题
+// 页面首次请求优化
